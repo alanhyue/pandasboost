@@ -14,58 +14,6 @@ import numpy as np
 import pandas as pd
 import sqlite3
 
-class SQL:
-    "An database interface that integrated Dataframe and SQL."
-    def __init__(self, database):
-        self._conn = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES)
-        self._conn.row_factory = sqlite3.Row
-
-    def read_query(self, sql, index_col=None, coerce_float=True, params=None, parse_dates=None, chunksize=None):
-        """Ported API from pd.read_sql_query."""
-        return pd.read_sql_query(sql=sql,
-                                con=self._conn,
-                                index_col=index_col,
-                                coerce_float=coerce_float,
-                                params=params,
-                                parse_dates=parse_dates,
-                                chunksize=chunksize)
-    def execute(self, sql, parameters=None):
-        "Ported from sqlite3.Connection.execute()."
-        return self._conn.execute(sql)
-    
-    def commit(self):
-        "Commit changes."
-        self._conn.commit()
-
-    def executemany(self, sql, parameters, commit=True):
-        """Ported from sqlite3.Connection.executemany().
-
-        Parameters
-        ==========
-        commit : bool, default True
-            Commit changes after executing the command.
-        """
-        status = self._conn.executemany(sql, parameters)
-        if commit:
-            self.commit()
-        return status
-
-    def close(self):
-        self._conn.close()
-    def tables(self):
-        "Return a list of table names in the database."
-        return self.read_query("""SELECT tbl_name FROM sqlite_master
-                                WHERE type=='table'""")['tbl_name'].tolist()
-    def columns(self, tbl_name):
-        "Return a list of column names in a table."
-        assert ' ' not in tbl_name, "Invalid table name '{}'".format(tbl_name)
-        cursor = con.execute("select * from {} limit 1".format(tbl_name))
-        names = list(map(lambda x: x[0], cursor.description))
-        return names
-    def __enter__(self):
-        return self
-    def __exit__(self, type, value, traceback):
-        self.close()
 
 @register_dataframe_booster('merge')
 @wraps(pd.merge)
@@ -139,36 +87,6 @@ def pct(dataframe, axis=0):
     return prepare
 
 
-def format_percentage(n, precision='auto'):
-    """Display a decimal number in percentage.
-    
-    Parameters
-    =========
-    n : float
-        The number to format.
-    percision: int, str, default 'auto'
-        The precision of outcome. Default 'auto' to automatically
-        choose the least precision on which the outcome is not zero.
-
-    Examples
-    ========
-    format_percentage(0.001) ==> '0.1%'
-    format_percentage(-0.0000010009) ==> '-0.0001%'
-    format_percentage(0.001, 4) ==> '0.1000%'
-    """
-    if precision == 'auto':
-        if n != 0:
-            k = abs(n)*100
-            cnt = 0
-            while k < 1:
-                k = k * 10
-                cnt += 1
-            precision = cnt
-        else:
-            precision = 0
-    fmt = '{:.'+str(precision)+'%}'
-    return fmt.format(n)
-
 @register_dataframe_booster('fmt')
 def format_dataframe(dataframe, big=0, pct='auto'):
     """Automatically format a dataframe with business readings and percentages.
@@ -225,23 +143,6 @@ def sumup(dataframe, row=True, column=False):
         # dataframe = pd.concat([dataframe, coltot], axis=1, sort=False)
     return dataframe
 
-def bignum(n, precision=0):
-    """ Transform a big number into a business style representation.
-    
-    Example:
-    >>> bignum(123456)
-    Output: 123K
-    """
-    millnames = ['', 'K', 'M', 'B', 'T']
-    try:
-        n = float(n)
-        millidx = max(0, min(len(millnames)-1,
-                             int(math.floor(0 if n == 0 else math.log10(abs(n))/3))))
-        fmt = '{:.'+str(precision)+'f} {}'
-        return fmt.format(n / 10**(3 * millidx), millnames[millidx])
-    except ValueError:
-        return n
-
 @register_dataframe_booster('nmissing')
 def nmissing(dataframe, show_all=False):
     """ Evaluate the number of missing values in columns in the dataframe """
@@ -253,77 +154,3 @@ def nmissing(dataframe, show_all=False):
     if not show_all:
         missing = missing.loc[missing.nmissing > 0]
     return missing
-
-@register_dataframe_booster('nlevels')
-def nlevels(dataframe, show_values=True):
-    """Report the number of unique values (levels) for each variable. 
-    Useful to inspect categorical variables.
-    """
-    nlvl = dataframe.nunique()
-    cnt = dataframe.count().to_frame('obs')
-    dtype = dataframe.dtypes.to_frame('dtype')
-    levels = nlvl.to_frame('levels').join([cnt, dtype])
-    levels.loc[levels.obs==0, 'obs'] = np.nan
-    if show_values:
-        r = []
-        for li in dataframe.columns:
-            unique_values = dataframe[li].unique()
-            sample = ', '.join(map(str, unique_values[:5]))
-            if len(unique_values) > 5:
-                sample += ', ...'
-            r.append(sample)
-        levels['values'] = r
-    levels.loc[:, 'uniqueness'] = (levels.levels / levels.obs)
-    levels = levels.sort_values('uniqueness', ascending=False)
-    return levels[['levels', 'obs', 'dtype', 'uniqueness', 'values']]
-
-def cum_freq(series):
-    """Return a dataframe showing the percentage, cumulative percentage, 
-    and cumulative frequency of a series.
-    """
-    series.name='freq'
-    df = pd.DataFrame(series)
-    df['pct'] = series / series.sum()
-    df['cumfreq'] = series.cumsum()
-    df['cumpct'] = df.cumfreq / series.sum()
-    return df
-
-def df_to_sql(database, table, df, auto_str=False, if_exists='fail'):
-    '''Write the {df} to the {table} in the {database}.
-    Specify if_exists='replace' to replace an existing table. Set auto_str to true
-    to automatically turn non-numerical data to string.'''
-    import sqlite3
-    if auto_str:
-        for li in df:
-            dtype = str(df[li].dtype)
-            if ('int' not in dtype) and ('float' not in dtype):
-                df[li] = df[li].astype(str)
-    conn = sqlite3.connect(database)
-    try:
-        conn.text_factory = lambda x: x.decode('utf-8', 'ignore')
-        df.to_sql(table,conn,if_exists='fail')
-    finally:
-        conn.close()
-    
-def collect(filelist, file_reader, ignore_error=False, verbose=True):
-    '''collect pieces of dataframe with the same variables and merge them together'''
-    def read_file(fpath):
-        df = None
-        try:
-            df = file_reader(fpath)
-        except:
-            if ignore_error==True:
-                pass
-        return df
-    if verbose:
-        print("Processing {} elements..".format(len(filelist)))
-    r=[]
-    len_last_sentence = 0
-    for s,li in enumerate(filelist):
-        if verbose:
-            print(' '*len_last_sentence, end='\r') # erase last printout
-            s = "{} processing {}".format(s, li)
-            len_last_sentence = len(s)
-            print(s, end='\r')
-        r.append(read_file(li))
-    return r
