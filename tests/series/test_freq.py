@@ -1,3 +1,4 @@
+import pytest
 from pandasboost.series.freq import freq
 import pandasboost
 import pandas as pd
