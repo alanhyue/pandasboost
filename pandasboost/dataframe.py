@@ -1,4 +1,5 @@
 from .registration import register_dataframe_booster
+from .formatter import bignum, format_percentage
 import pandas as pd
 from functools import wraps
 
@@ -56,31 +57,59 @@ def levels(dataframe, show_values=True):
     return levels[["levels", "obs", "dtype", "uniqueness", "values"]]
 
 
+def isnotebook():
+    "if executing in jupyter notebook"
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == "ZMQInteractiveShell":
+            return True  # Jupyter notebook or qtconsole
+        elif shell == "TerminalInteractiveShell":
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
 @register_dataframe_booster("merge")
 @wraps(pd.merge)
 def check_merge(left, *args, **kwargs):
     """Merge datasets and show statistics."""
     kwargs["indicator"] = True
+    right = args[0]
     mg = left.merge(*args, **kwargs)
+    mgstats = mg["_merge"].value_counts()
     # report stats
-    stats = mg["_merge"].value_counts()
-    stats.name = "obs."
-    stats = stats.pipe(cum_freq)
-    try:
+    nobs_left = left.shape[0]
+    nobs_right = right.shape[0]
+    nobs_result = mg.shape[0]
+    nobs_left_in_result = mgstats["both"] + mgstats["left_only"]
+    nobs_right_in_result = mgstats["both"] + mgstats["right_only"]
+    d = {
+        "left": bignum(nobs_left),
+        "right": bignum(nobs_right),
+        "result": bignum(nobs_result),
+        r"%left matched": format_percentage(nobs_left_in_result / nobs_left),
+        r"%right matched": format_percentage(nobs_right_in_result / nobs_right),
+    }
+    rpt = pd.Series(d).to_frame().T
+
+    if isnotebook():
         from IPython.core.display import display, HTML
 
-        display(HTML(stats.to_html()))
-    except ImportError:
-        print(stats)
-    return mg.drop("_merge", axis=1)
+        display(HTML(rpt.to_html()))
+    else:
+        print(rpt)
+    return mg.drop("_merge", axis=1).copy()
 
-@register_dataframe_booster('missing')
+
+@register_dataframe_booster("missing")
 def nmissing(dataframe, show_all=False):
     """ Evaluate the number of missing values in columns in the dataframe """
     total = dataframe.shape[0]
-    missing = pd.isnull(dataframe).sum().to_frame(name='nmissing')
-    missing['pctmissing'] = (missing.nmissing / total * 100).apply(int) / 100
-    missing.sort_values(by='nmissing', inplace=True)
+    missing = pd.isnull(dataframe).sum().to_frame(name="nmissing")
+    missing["pctmissing"] = (missing.nmissing / total * 100).apply(int) / 100
+    missing.sort_values(by="nmissing", inplace=True)
     missing.reset_index(inplace=True)
     if not show_all:
         missing = missing.loc[missing.nmissing > 0]
