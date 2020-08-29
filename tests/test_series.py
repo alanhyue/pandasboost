@@ -74,3 +74,11 @@ def test_freq():
     assert_series_equal(freq["freq"], expected_freq)
     assert_series_equal(freq["pct"], expected_pct)
 
+
+def test_freq_by_index():
+    srs = pd.Series([1, 1, 2, 3, 3, 3])
+    expected_freq = pd.Series([2, 1, 3], index=pd.Series([1, 2, 3]), name="freq")
+
+    freq = frequency(srs, by_index=True, business=False)
+
+    assert_series_equal(expected_freq, freq["freq"])

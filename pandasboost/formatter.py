@@ -1,3 +1,6 @@
+import math
+
+
 def format_percentage(n, precision="auto"):
     """Display a decimal number in percentage.
     

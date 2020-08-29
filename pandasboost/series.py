@@ -40,11 +40,27 @@ def cut_groups(srs, rules, right=True, missing="missing"):
 
 
 @register_series_booster("freq")
-def frequency(srs, business=True, ascending=False):
+def frequency(srs, business=True, ascending=None, by_index=False):
+    """
+    Parameters
+    ==========
+    ascending: boolean, default None
+        Whether to sort in ascending order. If none, will use ascending when sorted by index,
+        and descending when sorted by frequency.
+    by_index: boolean, default True
+        Whether sort result by index.
+    """
     c = srs.value_counts()
     c = c.to_frame("freq")
     c["pct"] = c / c["freq"].sum()
-    c = c.sort_values(by="freq", ascending=ascending)
+    if by_index:
+        if ascending is None:
+            ascending = True
+        c = c.sort_index(ascending=ascending)
+    else:
+        if ascending is None:
+            ascending = False
+        c = c.sort_values(by="freq", ascending=ascending)
     c["cumfreq"] = c["freq"].cumsum()
     c["cumpct"] = c["pct"].cumsum()
     if business:
