@@ -6,12 +6,14 @@ from functools import wraps
 
 ### Check / Drop rows
 @register_dataframe_booster("keep")
-def check_keep(frame, mask):
+def check_keep(frame, mask, desc):
     Sf = frame.shape[0]
     Sm = mask.sum()
     mf = frame.loc[mask].copy()
     Smf = mf.shape[0]
-    msg = make_msg(Sf, Sm, Smf, "kept", mask.name)
+
+    mPf = Sm / Sf
+    msg = f"{mPf:.0%} ({Smf:,}) rows remain: {desc}."
     print(msg)
     return mf
 
@@ -29,7 +31,7 @@ def check_drop(frame, mask):
 
 def make_msg(Sf, Sm, Smf, action, desc):
     mPf = Sm / Sf
-    return f"{mPf:.0%} ({Smf}) rows {action}: {desc}. {Sf:,} -> {Smf:,}"
+    return f"{mPf:.0%} ({Smf:,}) rows {action}: {desc}. {Sf:,} -> {Smf:,}"
 
 
 ###

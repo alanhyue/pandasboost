@@ -1,0 +1,5 @@
+setup.py
+pandasboost.egg-info/PKG-INFO
+pandasboost.egg-info/SOURCES.txt
+pandasboost.egg-info/dependency_links.txt
+pandasboost.egg-info/top_level.txt
