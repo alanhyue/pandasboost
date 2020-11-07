@@ -6,13 +6,23 @@ from functools import wraps
 
 ### Check / Drop rows
 @register_dataframe_booster("keep")
-def check_keep(frame, mask, desc):
-    Sf = frame.shape[0]
-    Sm = mask.sum()
-    mf = frame.loc[mask].copy()
-    Smf = mf.shape[0]
+def check_keep(frame, query, desc):
+    """
+    Filter a dataframe with `query` and report the number of rows affected.
 
-    mPf = Sm / Sf
+    Parameters
+    ----------
+    query: str
+        Query for filtering the dataframe. Will be passed to pandas.DataFrame.query.
+    desc: str
+        Description of the filter.
+    """
+    Sf = frame.shape[0]
+    mf = frame.query(query).copy()
+    Smf = mf.shape[0]
+    Sm = Sf - Smf
+
+    mPf = Smf / Sf
     msg = f"{mPf:.0%} ({Smf:,}) rows remain: {desc}."
     print(msg)
     return mf
@@ -37,8 +47,14 @@ def make_msg(Sf, Sm, Smf, action, desc):
 ###
 @register_dataframe_booster("levels")
 def levels(dataframe, show_values=True):
-    """Report the number of unique values (levels) for each variable. 
+    """
+    Report the number of unique values (levels) for each variable. 
     Useful to inspect categorical variables.
+
+    Parameters
+    ----------
+    show_values: bool
+        Whether to report a short sample of level values.
     """
     nlvl = dataframe.nunique()
     cnt = dataframe.count().to_frame("obs")
@@ -60,7 +76,7 @@ def levels(dataframe, show_values=True):
 
 
 def isnotebook():
-    "if executing in jupyter notebook"
+    "If code is executing in jupyter notebook"
     try:
         shell = get_ipython().__class__.__name__
         if shell == "ZMQInteractiveShell":
@@ -107,7 +123,15 @@ def check_merge(left, *args, **kwargs):
 
 @register_dataframe_booster("missing")
 def nmissing(dataframe, show_all=False):
-    """ Evaluate the number of missing values in columns in the dataframe """
+    """
+    Evaluate the number of missing values in columns in the dataframe 
+    
+    Parameters
+    ----------
+    show_all: bool
+        Whether to report all columns. `False` to show only columns with
+        one or more missing values.
+    """
     total = dataframe.shape[0]
     missing = pd.isnull(dataframe).sum().to_frame(name="nmissing")
     missing["pctmissing"] = (missing.nmissing / total * 100).apply(int) / 100

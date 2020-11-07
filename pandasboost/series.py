@@ -42,8 +42,10 @@ def cut_groups(srs, rules, right=True, missing="missing"):
 @register_series_booster("freq")
 def frequency(srs, business=True, ascending=None, by_index=False):
     """
+    Report frequency of values.
+
     Parameters
-    ==========
+    ----------
     ascending: boolean, default None
         Whether to sort in ascending order. If none, will use ascending when sorted by index,
         and descending when sorted by frequency.
