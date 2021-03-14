@@ -13,6 +13,7 @@ setup(
   author_email = 'alanhyue@outlook.com',      # Type in your E-Mail
   url = 'https://github.com/alanhyue/pandasboost',   # Provide either the link to your github or to your website
   keywords = ['pandasboost'],   # Keywords that define your package best
+  package_data={'ytZoo': ['pandasboost/pandas_flavor/*.py']},
   install_requires=[            # I get to this in a second
           'pandas'
       ],
