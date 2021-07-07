@@ -1,6 +1,13 @@
 README.md
 setup.py
+pandasboost/__init__.py
+pandasboost/dataframe.py
+pandasboost/formatter.py
+pandasboost/install_boosters.py
+pandasboost/registration.py
+pandasboost/series.py
 pandasboost.egg-info/PKG-INFO
 pandasboost.egg-info/SOURCES.txt
 pandasboost.egg-info/dependency_links.txt
+pandasboost.egg-info/requires.txt
 pandasboost.egg-info/top_level.txt
