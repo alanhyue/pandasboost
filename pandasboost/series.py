@@ -16,8 +16,11 @@ def cut_groups(srs, rules, right=True, missing="missing"):
             bins.append(item[0])
             labels.append(item[1])
     _min = srs.min()
-    if _min < bins[0]:
-        bins = [_min,] + bins
+    if _min <= bins[0]:
+        # set the min bin to min value minus 1 so the min value of the series is included in the minimum bin
+        bins = [
+            _min - 1,
+        ] + bins
     else:
         labels = labels[1:]
     if right:
@@ -30,13 +33,17 @@ def cut_groups(srs, rules, right=True, missing="missing"):
             else:
                 right_label = right
             labels.append(right_label)
-    labels = ["{}. {}".format(i + 1, v) for i, v in enumerate(labels)]
+    if len(labels) >= 10:
+        labelfmt = "{:02}. {}".format
+    else:
+        labelfmt = "{}. {}".format
+    labels = [labelfmt(i + 1, v) for i, v in enumerate(labels)]
     cuts = pd.cut(srs, bins=bins, labels=labels, include_lowest=True)
     if missing is not None:
-        labels = cuts.astype(str)
+        groupnames = cuts.astype(str)
         missing_label = "0. {}".format(missing)
-        labels = labels.replace("nan", missing_label)
-    return labels
+        groupnames = groupnames.replace("nan", missing_label)
+    return groupnames
 
 
 @register_series_booster("freq")

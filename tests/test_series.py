@@ -12,6 +12,35 @@ def test_cut_groups():
     assert_series_equal(grps, pd.Series(["1. <=5", "1. <=5", "2. >5"]))
 
 
+def test_cut_groups_left_edge_case():
+    srs = pd.Series([1, 3, 10])
+    grps = cut_groups(srs, [1])
+    print(grps)
+    assert_series_equal(grps, pd.Series(["1. <=1", "2. >1", "2. >1"]))
+
+
+def test_cut_groups_pad_zeros_on_double_digit_numbers():
+    srs = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    grps = cut_groups(srs, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    print(grps)
+    expected = pd.Series(
+        [
+            "01. <=1",
+            "02. <=2",
+            "03. <=3",
+            "04. <=4",
+            "05. <=5",
+            "06. <=6",
+            "07. <=7",
+            "08. <=8",
+            "09. <=9",
+            "10. <=10",
+            "11. >10",
+        ]
+    )
+    assert_series_equal(grps, expected)
+
+
 def test_cut_groups_ignores_bin_value_less_than_min_value():
     srs = pd.Series([1, 3, 10])
     grps = cut_groups(srs, [0, 5])
